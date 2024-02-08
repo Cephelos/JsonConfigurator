@@ -1,0 +1,45 @@
+{
+    "BooleanFormat": {
+        "description": "This is the display for boolean values.",
+        "value": false,
+        "default": false
+    },
+    "IntegerFormat": {
+        "description": "This is the display for integer values",
+        "value": 41,
+        "default": 60,
+        "range": [
+            1,
+            100,
+            1
+        ],
+        "extras": {
+            "slider": true
+        }
+    },
+    "FloatFormat": {
+        "description": "This is the display for float values",
+        "value": 0.1,
+        "default": 70.5,
+        "range": [
+            -1.5,
+            1.5,
+            0.1
+        ],
+        "extras": {
+            "precision": 2,
+            "slider": true
+        }
+    },
+    "ChoicesFormat": {
+        "description": "This is the display for multiple-choice options",
+        "value": "choice 3",
+        "choices": [
+            "choice 1",
+            "choice 2",
+            "choice 3"
+        ],
+        "default": "choice 3"
+    },
+    "__CephelosModConfig": true
+}
