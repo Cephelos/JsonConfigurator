@@ -2,7 +2,10 @@
 Minimal GUI for modifying JSON files, made specifically for Baldur's Gate 3 Mods
 The executable *should* find your config files automatically if its in the normal spot, but otherwise you will be asked to direct it to the "Baldur's Gate 3" folder that contains your saves, mods, etc.
 
+***If a mod author isn't using this for their mod's config stuff (and they probably aren't), don't bother them or me about it. This tool is primarily for my own use, it's only here in case anyone else wanted to use it.***
+
 The JSON must fit a specific format for it to work (the text below is not valid JSON as it is commented; this same template without the comments is located in format.json)
+If you split your mod config into multiple files, each one will show up as a seperate tab.
 ```javascript
 {
     "BooleanFormat": {  // Template for boolean values, appears as a checkbox. This will be the name of the option in the GUI
