@@ -7,7 +7,7 @@ from glob import glob
 import platform
 
 class RowWidget(QWidget):
-    def __init__(self, name, desc, val, default_val, input_type, choices=None, range=None, extras=None, parent=None):
+    def __init__(self, name, desc, val, default_val, input_type, choices=None, range=None, extras={}, parent=None):
         super(RowWidget, self).__init__(parent)
         self.name = name
         self.val = val
@@ -17,10 +17,15 @@ class RowWidget(QWidget):
         self.range = range
         self.extras = extras
 
-        if self.extras and self.extras["slider"] and (self.input_type == "integer" or self.input_type == "float"):
+        if "slider" in self.extras and self.extras["slider"] and (self.input_type == "integer" or self.input_type == "float"):
             self.sliderExists = True
         else:
             self.sliderExists = False
+
+        if "multi" in self.extras and self.extras["multi"] and self.input_type == "list":
+            self.multi_choice = True
+        else:
+            self.multi_choice = False
 
         self.title_label = QLabel(name)
         self.description_label = QLabel(desc)
@@ -82,7 +87,7 @@ class RowWidget(QWidget):
    
         elif self.input_type == "boolean":
             self.checkbox = QCheckBox()
-            self.checkbox.setChecked(val)
+            self.checkbox.setChecked(self.val)
             self.checkbox.stateChanged.connect(self.checkbox_state_changed)
 
 
@@ -90,6 +95,11 @@ class RowWidget(QWidget):
             self.radios = []
             for c in self.choices:
                 self.radios.append(QRadioButton(c))
+
+        elif self.input_type == "list":
+            self.checkboxes = []
+            for c in self.choices:
+                self.checkboxes.append(QCheckBox(c))
         
         self.reset_button = QPushButton("Reset")
         self.reset_button.clicked.connect(self.click_reset)
@@ -134,6 +144,21 @@ class RowWidget(QWidget):
 
             grid.addLayout(radiogrid, 2, 0)
 
+        elif self.input_type == "list":
+            checkboxgrid = QGridLayout()
+            for cb in self.checkboxes:
+                checkboxgrid.addWidget(cb, 0, items)
+                if cb.text() in self.val:
+                    cb.setChecked(True)
+                cb.toggled.connect(self.multi_checkbox_state_changed)
+
+                checkboxgrid.setColumnStretch(items, 1)
+                items += 1
+            
+            checkboxgrid.setColumnStretch(items, 999)
+
+            grid.addLayout(checkboxgrid, 2, 0)
+
         grid.addWidget(self.reset_button, 2, items, Qt.AlignRight)
  
 
@@ -162,6 +187,13 @@ class RowWidget(QWidget):
         if checked:
             self.val = self.sender().text()
 
+    def multi_checkbox_state_changed(self, state):
+        if (self.sender().text() in self.val) != state:
+            if state:
+                self.val.append(self.sender().text())
+            else:
+                self.val.remove(self.sender().text())
+
 
     def click_reset(self):
         if self.input_type == "integer" or self.input_type == "float":
@@ -177,6 +209,15 @@ class RowWidget(QWidget):
             for r in self.radios:
                 if r.text() == self.default_val:
                     r.setChecked(True)
+
+        elif self.input_type == "list":
+            self.val = self.default_val
+            for cb in self.checkboxes:
+                print(cb.text())
+                if cb.text() in self.default_val:
+                    cb.setChecked(True)
+                else:
+                    cb.setChecked(False)
 
     def error_color(self):
         self.setStyleSheet("background-color: red;")
@@ -262,8 +303,8 @@ class MyGUI(QMainWindow):
         mod_config = json_read(mod_config_path)
         if not mod_config:
             return
-        self.database = mod_config
         for page in mod_config:
+            self.database[mod_config_path] = mod_config
             tab = QWidget()
             scroll_area = QScrollArea()
             scroll_layout = QGridLayout(tab)
@@ -280,7 +321,7 @@ class MyGUI(QMainWindow):
                 if "extras" in mod_config[page][o]:
                     extras = mod_config[page][o]["extras"]
                 else:
-                    extras = None
+                    extras = {}
 
                 if type(default_val) == int or type(default_val) == float:
 
@@ -303,9 +344,14 @@ class MyGUI(QMainWindow):
                     choices = mod_config[page][o]["choices"]
                     input_type = "string"
 
+                elif type(default_val) == list:
+                    choices = mod_config[page][o]["choices"]
+                    input_type = "list"
+                    extras["mutli"] = True
+
                 row_widget = RowWidget(o, mod_config[page][o]["description"], val, default_val, input_type, choices, range, extras)
                 scroll_layout.addWidget(row_widget, index, 0)
-                self.allWidgets.append((page, row_widget))
+                self.allWidgets.append((mod_config_path, page, row_widget))
                 index += 1
 
             scroll_layout.setRowStretch(index, 999)
@@ -326,18 +372,19 @@ class MyGUI(QMainWindow):
             
         for w in self.allWidgets:
             file = w[0]
-            widget = w[1]
-            self.database[file][widget.name]['value'] = widget.val
+            page = w[1]
+            widget = w[2]
+            self.database[file][page][widget.name]['value'] = widget.val
 
         for f in self.database:
-            json_write(f, self.database[f])
+            json_write(f, self.database)
         
         QMessageBox.question(self, 'Success!', "Saving Complete!", QMessageBox.Ok, QMessageBox.Ok)
 
 
     def click_reset(self):
         for w in self.allWidgets:
-            widget = w[1]
+            widget = w[2]
             if widget.input_type == "integer" or widget.input_type == "float":
                 widget.val = widget.default_val
                 widget.input_box.setValue(widget.default_val)
@@ -351,6 +398,14 @@ class MyGUI(QMainWindow):
                 for r in widget.radios:
                     if r.text() == widget.default_val:
                         r.setChecked(True)
+            
+            elif widget.input_type == "list":
+                widget.val = widget.default_val
+                for cb in widget.checkboxes:
+                    if cb.text() in widget.default_val:
+                        cb.setChecked(True)
+                    else:
+                        cb.setChecked(False)
 
     def change_path(self):
         file_dialog = QFileDialog()
@@ -371,11 +426,11 @@ class MyGUI(QMainWindow):
         no_errors = True
         error_pages = []
         for w in self.allWidgets:
-            widget = w[1]
+            widget = w[2]
             if widget.error == True:
                 self.warning = True
                 no_errors = False
-                error_pages.append(os.path.basename(w[0])[:-5])
+                error_pages.append(w[1])
 
         if no_errors:
             self.warning = False
