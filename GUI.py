@@ -16,6 +16,7 @@ class RowWidget(QWidget):
         self.choices = choices
         self.range = range
         self.extras = extras
+
         if self.extras and self.extras["slider"] and (self.input_type == "integer" or self.input_type == "float"):
             self.sliderExists = True
         else:
@@ -194,10 +195,10 @@ class RowWidget(QWidget):
 
 
 class MyGUI(QMainWindow):
-    def __init__(self, config_dict, game_data_path):
+    def __init__(self, config_list, game_data_path):
         super().__init__()
 
-        self.config_dict = config_dict
+        self.config_list = config_list
         self.game_data_path = game_data_path
 
 
@@ -248,35 +249,36 @@ class MyGUI(QMainWindow):
         self.setCentralWidget(main_widget)
 
     def create_mod_tabs(self):
-        for mod in self.config_dict:
-            self.central_widget_dict[mod] = QTabWidget(self.mod_tabs_widget)
-            self.create_tabs(mod, self.config_dict[mod])
+        for mod_config_path in self.config_list:
+            self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))] = QTabWidget(self.mod_tabs_widget)
+            self.create_tabs(mod_config_path)
 
 
-            self.mod_tabs_widget.addTab(self.central_widget_dict[mod], os.path.basename(mod))
+            self.mod_tabs_widget.addTab(self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))], os.path.basename(os.path.dirname(mod_config_path)))
+
             
 
-    def create_tabs(self, mod, config_list):
-        for f in config_list:
+    def create_tabs(self, mod_config_path):
+        mod_config = json_read(mod_config_path)
+        if not mod_config:
+            return
+        self.database = mod_config
+        for page in mod_config:
             tab = QWidget()
             scroll_area = QScrollArea()
             scroll_layout = QGridLayout(tab)
             index = 0
-            data = json_read(f)
-            if not data:
+            if "__CephelosModConfig" in page:
                 continue
-            self.database[f] = data
 
-            for o in data:
-                if "__CephelosModConfig" in o:
-                    continue
-                val = data[o]["value"]
-                default_val = data[o]["default"]
+            for o in mod_config[page]:
+                val = mod_config[page][o]["value"]
+                default_val = mod_config[page][o]["default"]
                 choices = None
                 range = ["None", "None", "None"]
                 
-                if "extras" in data[o]:
-                    extras = data[o]["extras"]
+                if "extras" in mod_config[page][o]:
+                    extras = mod_config[page][o]["extras"]
                 else:
                     extras = None
 
@@ -288,8 +290,8 @@ class MyGUI(QMainWindow):
                     elif type(default_val) == float:
                         input_type = "float"
                     
-                    if "range" in data[o]:
-                        range = data[o]["range"]
+                    if "range" in mod_config[page][o]:
+                        range = mod_config[page][o]["range"]
 
                     else:
                         raise KeyError
@@ -298,12 +300,12 @@ class MyGUI(QMainWindow):
                     input_type = "boolean"
 
                 elif type(default_val) == str:
-                    choices = data[o]["choices"]
+                    choices = mod_config[page][o]["choices"]
                     input_type = "string"
 
-                row_widget = RowWidget(o, data[o]["description"], val, default_val, input_type, choices, range, extras)
+                row_widget = RowWidget(o, mod_config[page][o]["description"], val, default_val, input_type, choices, range, extras)
                 scroll_layout.addWidget(row_widget, index, 0)
-                self.allWidgets.append((f, row_widget))
+                self.allWidgets.append((page, row_widget))
                 index += 1
 
             scroll_layout.setRowStretch(index, 999)
@@ -313,7 +315,7 @@ class MyGUI(QMainWindow):
             scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
             scroll_area.horizontalScrollBar().setEnabled(False)
             scroll_area.setWidget(tab)
-            self.central_widget_dict[mod].addTab(scroll_area, os.path.basename(f)[:-5])
+            self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))].addTab(scroll_area, page)
 
 
     def click_save(self):
@@ -329,6 +331,8 @@ class MyGUI(QMainWindow):
 
         for f in self.database:
             json_write(f, self.database[f])
+        
+        QMessageBox.question(self, 'Success!', "Saving Complete!", QMessageBox.Ok, QMessageBox.Ok)
 
 
     def click_reset(self):
@@ -391,7 +395,6 @@ def main():
         if os.path.exists(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config"):
             config = open(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config", "r").read()
             game_data_path = config[6:]
-            print(game_data_path)
 
         if not game_data_path or not os.path.exists(game_data_path):
             QMessageBox.warning(None, "Game Data Directory Not Found", "Your game data directory couldn't be found. Please navigate to it now.", QMessageBox.Ok)
@@ -418,9 +421,9 @@ def find_jsons(game_data_path):
                 f = open(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config", "w")
                 f.write("Path: " + game_data_path)
                 f.close()
-    mods = glob(game_data_path + "Script Extender/*")
-    json_dict = {mod: glob(mod + "/*.json") for mod in mods if glob(mod + "/*.json")}
-    return json_dict, game_data_path
+    json_list = glob(game_data_path + "Script Extender/*/*.json")
+    
+    return json_list, game_data_path
 
 
 def json_read(file):
@@ -429,7 +432,6 @@ def json_read(file):
         json_data = json.load(file_handler)
         if "__CephelosModConfig" not in json_data:
             return None
-    print(json_data)
     file_handler.close
     print('file has been read and closed')
     return json_data
