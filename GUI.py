@@ -16,36 +16,38 @@ class RowWidget(QWidget):
         self.choices = choices
         self.range = range
         self.extras = extras
-        if(self.extras and self.extras["slider"] and (self.input_type == "integer" or self.input_type == "float")):
+        if self.extras and self.extras["slider"] and (self.input_type == "integer" or self.input_type == "float"):
             self.sliderExists = True
+        else:
+            self.sliderExists = False
 
         self.title_label = QLabel(name)
         self.description_label = QLabel(desc)
         self.error = False
 
-        if(self.input_type == "integer" or self.input_type == "float"):
+        if self.input_type == "integer" or self.input_type == "float":
             restrictions = []
-            if(type(self.range[0]) == int or type(self.range[0]) == float):
+            if type(self.range[0]) == int or type(self.range[0]) == float:
                 restrictions.append("Min: " + str(self.range[0]))
             else:
                 self.range[0] = -2**30
                 self.sliderExists = False
-            if(type(self.range[1]) == int or type(self.range[1]) == float):
+            if type(self.range[1]) == int or type(self.range[1]) == float:
                 restrictions.append("Max: " + str(self.range[1]))
             else:
                 self.range[1] = 2**30
                 self.sliderExists = False
-            if(self.range[2] and (type(self.range[2]) == int or type(self.range[2]) == float)):
+            if self.range[2] and (type(self.range[2]) == int or type(self.range[2]) == float):
                 restrictions.append("Step: " + str(self.range[2]))
             else:
                 self.range[2] = 1.0
                 self.sliderExists = False
 
-            if(self.input_type == "integer"):
+            if self.input_type == "integer":
                 self.input_box = QSpinBox()
-            elif(self.input_type == "float"):
+            elif self.input_type == "float":
                 self.input_box = QDoubleSpinBox()
-                if("precision" in self.extras):
+                if "precision" in self.extras:
                     self.input_box.setDecimals(extras["precision"])
                 else:
                     self.input_box.setDecimals(str(range[2])[::-1].find('.'))
@@ -56,11 +58,11 @@ class RowWidget(QWidget):
             self.input_box.setRange(range[0], range[1])
             self.input_box.setSingleStep(self.range[2])
                             
-            if(self.sliderExists):
+            if self.sliderExists:
                 self.slider = QSlider()
                 self.slider.setOrientation(Qt.Horizontal)
                 self.slider.valueChanged.connect(self.slider_value_changed)
-                if(self.input_type == "float"):
+                if self.input_type == "float":
                     self.slider_precision = str(range[2])[::-1].find('.')
                     newMin = self.floatToInt(range[0])
                     newMax = self.floatToInt(range[1])
@@ -77,13 +79,13 @@ class RowWidget(QWidget):
             self.input_box.setValue(self.val)
 
    
-        elif(self.input_type == "boolean"):
+        elif self.input_type == "boolean":
             self.checkbox = QCheckBox()
             self.checkbox.setChecked(val)
             self.checkbox.stateChanged.connect(self.checkbox_state_changed)
 
 
-        elif(self.input_type == "string"):
+        elif self.input_type == "string":
             self.radios = []
             for c in self.choices:
                 self.radios.append(QRadioButton(c))
@@ -99,10 +101,10 @@ class RowWidget(QWidget):
         grid.addWidget(self.description_label, 1, 0)
 
         items = 0
-        if(self.input_type == "integer" or self.input_type == "float"):
+        if self.input_type == "integer" or self.input_type == "float":
             boxgrid = QGridLayout()
             boxgrid.addWidget(self.valid_inputs_label, 0, 0)
-            if(self.sliderExists):
+            if self.sliderExists:
                 boxgrid.addWidget(self.slider, 0, 1)
                 boxgrid.setColumnStretch(2, 999)
             boxgrid.addWidget(self.input_box, 0, int(self.sliderExists) + 1)
@@ -111,16 +113,16 @@ class RowWidget(QWidget):
             items += 1
 
 
-        elif(self.input_type == "boolean"):
+        elif self.input_type == "boolean":
             grid.addWidget(self.checkbox, 2, items)
             items += 1
 
 
-        elif(self.input_type == "string"):
+        elif self.input_type == "string":
             radiogrid = QGridLayout()
             for r in self.radios:
                 radiogrid.addWidget(r, 0, items)
-                if(r.text() == self.val):
+                if r.text() == self.val:
                     r.setChecked(True)
                 r.toggled.connect(self.radiobutton_toggled)
 
@@ -138,14 +140,14 @@ class RowWidget(QWidget):
 
     def input_box_text_changed(self, value):
         self.val = value
-        if(self.sliderExists):
-            if(self.input_type == "float"):
+        if self.sliderExists:
+            if self.input_type == "float":
                 self.slider.setValue(self.floatToInt(value))
             else:
                 self.slider.setValue(value)
 
     def slider_value_changed(self, value):
-        if(self.input_type == "float"):
+        if self.input_type == "float":
             self.input_box.setValue(self.intToFloat(value))
         else:
             self.input_box.setValue(value)
@@ -156,23 +158,23 @@ class RowWidget(QWidget):
 
 
     def radiobutton_toggled(self, checked):
-        if(checked):
+        if checked:
             self.val = self.sender().text()
 
 
     def click_reset(self):
-        if(self.input_type == "integer" or self.input_type == "float"):
+        if self.input_type == "integer" or self.input_type == "float":
             self.val = self.default_val
             self.input_box.setValue(self.default_val)
 
-        elif(self.input_type == "boolean"):
+        elif self.input_type == "boolean":
             self.val = self.default_val
             self.checkbox.setChecked(self.default_val)
 
-        elif(self.input_type == "string"):
+        elif self.input_type == "string":
             self.val = self.default_val
             for r in self.radios:
-                if(r.text() == self.default_val):
+                if r.text() == self.default_val:
                     r.setChecked(True)
 
     def error_color(self):
@@ -192,10 +194,10 @@ class RowWidget(QWidget):
 
 
 class MyGUI(QMainWindow):
-    def __init__(self, configList, game_data_path):
+    def __init__(self, config_dict, game_data_path):
         super().__init__()
 
-        self.configList = configList
+        self.config_dict = config_dict
         self.game_data_path = game_data_path
 
 
@@ -212,11 +214,14 @@ class MyGUI(QMainWindow):
         main_widget = QWidget()
         main_layout = QVBoxLayout(main_widget)
 
-        self.central_widget = QTabWidget(self)
-        main_layout.addWidget(self.central_widget)
+        self.mod_tabs_widget = QTabWidget(self)
+        self.mod_tabs_layout = QVBoxLayout(self.mod_tabs_widget)
         self.setFixedSize(1280, 720)
 
-        self.create_tabs()
+        self.central_widget_dict = {}
+        
+
+        self.create_mod_tabs()
 
         bottom_buttons = QGridLayout()
 
@@ -234,51 +239,62 @@ class MyGUI(QMainWindow):
 
         bottom_buttons.setColumnStretch(0, 999)
 
-        main_layout.addLayout(bottom_buttons)
 
-        main_widget.setLayout(main_layout)
+
+        self.mod_tabs_widget.setLayout(self.mod_tabs_layout)
+        main_layout.addWidget(self.mod_tabs_widget)
+        main_layout.addLayout(bottom_buttons)
+        
         self.setCentralWidget(main_widget)
 
+    def create_mod_tabs(self):
+        for mod in self.config_dict:
+            self.central_widget_dict[mod] = QTabWidget(self.mod_tabs_widget)
+            self.create_tabs(mod, self.config_dict[mod])
 
-    def create_tabs(self):
-        for f in self.configList:
+
+            self.mod_tabs_widget.addTab(self.central_widget_dict[mod], os.path.basename(mod))
+            
+
+    def create_tabs(self, mod, config_list):
+        for f in config_list:
             tab = QWidget()
             scroll_area = QScrollArea()
             scroll_layout = QGridLayout(tab)
             index = 0
             data = json_read(f)
-            if(not data):
+            if not data:
                 continue
             self.database[f] = data
 
             for o in data:
-                if("__CephelosModConfig" in o):
+                if "__CephelosModConfig" in o:
                     continue
                 val = data[o]["value"]
                 default_val = data[o]["default"]
                 choices = None
                 range = ["None", "None", "None"]
                 
-                if("extras" in data[o]):
+                if "extras" in data[o]:
                     extras = data[o]["extras"]
                 else:
                     extras = None
 
-                if(type(default_val) == int or type(default_val) == float):
+                if type(default_val) == int or type(default_val) == float:
 
-                    if(type(default_val) == int):
+                    if type(default_val) == int:
                         input_type = "integer"
 
-                    elif(type(default_val) == float):
+                    elif type(default_val) == float:
                         input_type = "float"
                     
-                    if("range" in data[o]):
+                    if "range" in data[o]:
                         range = data[o]["range"]
 
                     else:
                         raise KeyError
                     
-                elif(type(default_val) == bool):
+                elif type(default_val) == bool:
                     input_type = "boolean"
 
                 elif type(default_val) == str:
@@ -297,13 +313,12 @@ class MyGUI(QMainWindow):
             scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
             scroll_area.horizontalScrollBar().setEnabled(False)
             scroll_area.setWidget(tab)
-            
-            self.central_widget.addTab(scroll_area, os.path.basename(f)[:-5])
+            self.central_widget_dict[mod].addTab(scroll_area, os.path.basename(f)[:-5])
 
 
     def click_save(self):
         error_list = self.check_for_errors()
-        if(self.warning):
+        if self.warning:
             QMessageBox.question(self, 'Warning!', "Fix errors in " + ", ".join(error_list) + " before trying to save!", QMessageBox.Ok, QMessageBox.Ok)
             return
             
@@ -319,18 +334,18 @@ class MyGUI(QMainWindow):
     def click_reset(self):
         for w in self.allWidgets:
             widget = w[1]
-            if(widget.input_type == "integer" or widget.input_type == "float"):
+            if widget.input_type == "integer" or widget.input_type == "float":
                 widget.val = widget.default_val
                 widget.input_box.setValue(widget.default_val)
 
-            elif(widget.input_type == "boolean"):
+            elif widget.input_type == "boolean":
                 widget.val = widget.default_val
                 widget.checkbox.setChecked(widget.default_val)
 
-            elif(widget.input_type == "string"):
+            elif widget.input_type == "string":
                 widget.val = widget.default_val
                 for r in widget.radios:
-                    if(r.text() == widget.default_val):
+                    if r.text() == widget.default_val:
                         r.setChecked(True)
 
     def change_path(self):
@@ -358,27 +373,27 @@ class MyGUI(QMainWindow):
                 no_errors = False
                 error_pages.append(os.path.basename(w[0])[:-5])
 
-        if(no_errors):
+        if no_errors:
             self.warning = False
         return error_pages
     
 def main():
     app = QApplication(sys.argv)
-    if(platform.system() == "Windows"):
+    if platform.system() == "Windows":
         game_data_path = os.getenv("LOCALAPPDATA") + "\\Larian Studios\\Baldur's Gate 3\\"
-    elif(platform.system() == "Darwin"):
+    elif platform.system() == "Darwin":
         game_data_path = "$HOME/Documents/Larian Studios/Baldur's Gate 3/"
     else:  
         # If you're using Linux you're smart enough to find it yourself
         game_data_path = None
 
-    if(not game_data_path or not os.path.exists(game_data_path)):
-        if(os.path.exists(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config")):
+    if not game_data_path or not os.path.exists(game_data_path):
+        if os.path.exists(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config"):
             config = open(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config", "r").read()
             game_data_path = config[6:]
             print(game_data_path)
 
-        if(not game_data_path or not os.path.exists(game_data_path)):
+        if not game_data_path or not os.path.exists(game_data_path):
             QMessageBox.warning(None, "Game Data Directory Not Found", "Your game data directory couldn't be found. Please navigate to it now.", QMessageBox.Ok)
             game_data_path = None
 
@@ -389,7 +404,7 @@ def main():
 
 
 def find_jsons(game_data_path):
-    if(not game_data_path):
+    if not game_data_path:
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.Directory)
         file_dialog.setViewMode(QFileDialog.Detail)
@@ -398,22 +413,23 @@ def find_jsons(game_data_path):
             file_paths = file_dialog.selectedFiles()
             if file_paths:
                 game_data_path = file_paths[0]
-                if(not os.path.exists(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator")):
+                if not os.path.exists(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator"):
                     os.mkdir(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator")
                 f = open(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config", "w")
                 f.write("Path: " + game_data_path)
                 f.close()
-    jsons = glob(game_data_path + "/Script Extender/*/*.json")
-    return jsons, game_data_path
+    mods = glob(game_data_path + "Script Extender/*")
+    json_dict = {mod: glob(mod + "/*.json") for mod in mods if glob(mod + "/*.json")}
+    return json_dict, game_data_path
 
 
 def json_read(file):
     with open(file,"r") as file_handler:
-        if("CephelosModConfig" in file_handler.read()):
-            file_handler.seek(0)
-            json_data = json.load(file_handler)
-        else:
+        file_handler.seek(0)
+        json_data = json.load(file_handler)
+        if "__CephelosModConfig" not in json_data:
             return None
+    print(json_data)
     file_handler.close
     print('file has been read and closed')
     return json_data
@@ -427,8 +443,8 @@ def json_write(file, json_data):
     print('file has been written to and closed')
 
 def find_deepest_parent(path):
-    while(path != os.path.dirname(path)):
-        if(os.path.exists(path)):
+    while path != os.path.dirname(path):
+        if os.path.exists(path):
             return path
         path = os.path.dirname(path)
     return path
