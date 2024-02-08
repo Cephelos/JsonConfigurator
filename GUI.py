@@ -213,7 +213,6 @@ class RowWidget(QWidget):
         elif self.input_type == "list":
             self.val = self.default_val
             for cb in self.checkboxes:
-                print(cb.text())
                 if cb.text() in self.default_val:
                     cb.setChecked(True)
                 else:
@@ -377,7 +376,7 @@ class MyGUI(QMainWindow):
             self.database[file][page][widget.name]['value'] = widget.val
 
         for f in self.database:
-            json_write(f, self.database)
+            json_write(f, self.database[f])
         
         QMessageBox.question(self, 'Success!', "Saving Complete!", QMessageBox.Ok, QMessageBox.Ok)
 
