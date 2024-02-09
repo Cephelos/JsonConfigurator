@@ -248,7 +248,7 @@ class MyGUI(QMainWindow):
         self.warning = False
 
         self.setWindowTitle("Cephelos Mod Configurator")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 1280, 720)
         self.run_init()
         
     def run_init(self):
@@ -257,7 +257,6 @@ class MyGUI(QMainWindow):
 
         self.mod_tabs_widget = QTabWidget(self)
         self.mod_tabs_layout = QVBoxLayout(self.mod_tabs_widget)
-        self.setFixedSize(1280, 720)
 
         self.central_widget_dict = {}
         
@@ -290,18 +289,15 @@ class MyGUI(QMainWindow):
 
     def create_mod_tabs(self):
         for mod_config_path in self.config_list:
-            self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))] = QTabWidget(self.mod_tabs_widget)
-            self.create_tabs(mod_config_path)
-
-
-            self.mod_tabs_widget.addTab(self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))], os.path.basename(os.path.dirname(mod_config_path)))
-
-            
+            if self.create_tabs(mod_config_path):
+                self.mod_tabs_widget.addTab(self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))], os.path.basename(os.path.dirname(mod_config_path)))
 
     def create_tabs(self, mod_config_path):
         mod_config = json_read(mod_config_path)
         if not mod_config:
-            return
+            return False
+        else:
+            self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))] = QTabWidget(self.mod_tabs_widget)
         for page in mod_config:
             self.database[mod_config_path] = mod_config
             tab = QWidget()
@@ -361,6 +357,7 @@ class MyGUI(QMainWindow):
             scroll_area.horizontalScrollBar().setEnabled(False)
             scroll_area.setWidget(tab)
             self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))].addTab(scroll_area, page)
+        return True
 
 
     def click_save(self):
@@ -437,6 +434,7 @@ class MyGUI(QMainWindow):
     
 def main():
     app = QApplication(sys.argv)
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     if platform.system() == "Windows":
         game_data_path = os.getenv("LOCALAPPDATA") + "\\Larian Studios\\Baldur's Gate 3\\"
     elif platform.system() == "Darwin":
