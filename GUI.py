@@ -1,3 +1,5 @@
+from collections import OrderedDict
+from enum import Enum
 import sys
 import os
 from PyQt5.QtCore import Qt
@@ -7,9 +9,10 @@ from glob import glob
 import platform
 
 class RowWidget(QWidget):
-    def __init__(self, name, desc, val, default_val, input_type, choices=None, range=None, extras={}, parent=None):
+    def __init__(self, name, display_name, desc, val, default_val, input_type, choices=None, range=None, extras={}, parent=None):
         super(RowWidget, self).__init__(parent)
         self.name = name
+        self.display_name = display_name
         self.val = val
         self.default_val = default_val
         self.input_type = input_type
@@ -27,7 +30,7 @@ class RowWidget(QWidget):
         else:
             self.multi_choice = False
 
-        self.title_label = QLabel(name)
+        self.title_label = QLabel(display_name)
         self.description_label = QLabel(desc)
         self.error = False
 
@@ -233,13 +236,13 @@ class RowWidget(QWidget):
     def intToFloat(self, num):
         return num/(self.slider_precision*10)
 
-
 class MyGUI(QMainWindow):
     def __init__(self, config_list, game_data_path):
         super().__init__()
 
         self.config_list = config_list
         self.game_data_path = game_data_path
+        self.max_backups = 5
 
 
         self.database = {}
@@ -258,7 +261,7 @@ class MyGUI(QMainWindow):
         self.mod_tabs_widget = QTabWidget(self)
         self.mod_tabs_layout = QVBoxLayout(self.mod_tabs_widget)
 
-        self.central_widget_dict = {}
+        self.central_widget_dict = OrderedDict()
         
 
         self.create_mod_tabs()
@@ -289,11 +292,13 @@ class MyGUI(QMainWindow):
 
     def create_mod_tabs(self):
         for mod_config_path in self.config_list:
+            print(mod_config_path)
             if self.create_tabs(mod_config_path):
                 self.mod_tabs_widget.addTab(self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))], os.path.basename(os.path.dirname(mod_config_path)))
 
     def create_tabs(self, mod_config_path):
         mod_config = json_read(mod_config_path)
+        tabs_end = []
         if not mod_config:
             return False
         else:
@@ -304,47 +309,52 @@ class MyGUI(QMainWindow):
             scroll_area = QScrollArea()
             scroll_layout = QGridLayout(tab)
             index = 0
-            if "__CephelosModConfig" in page:
+            tab_name = ""
+            if "__" in page:
                 continue
 
             for o in mod_config[page]:
-                val = mod_config[page][o]["value"]
-                default_val = mod_config[page][o]["default"]
-                choices = None
-                range = ["None", "None", "None"]
-                
-                if "extras" in mod_config[page][o]:
-                    extras = mod_config[page][o]["extras"]
-                else:
-                    extras = {}
-
-                if type(default_val) == int or type(default_val) == float:
-
-                    if type(default_val) == int:
-                        input_type = "integer"
-
-                    elif type(default_val) == float:
-                        input_type = "float"
+                if o != "name":
+                    val = mod_config[page][o]["value"]
+                    default_val = mod_config[page][o]["default"]
+                    choices = None
+                    range = ["None", "None", "None"]
+                    display_name = mod_config[page][o]["name"]
                     
-                    if "range" in mod_config[page][o]:
-                        range = mod_config[page][o]["range"]
-
+                    if "extras" in mod_config[page][o]:
+                        extras = mod_config[page][o]["extras"]
                     else:
-                        raise KeyError
-                    
-                elif type(default_val) == bool:
-                    input_type = "boolean"
+                        extras = {}
 
-                elif type(default_val) == str:
-                    choices = mod_config[page][o]["choices"]
-                    input_type = "string"
+                    if type(default_val) == int or type(default_val) == float:
 
-                elif type(default_val) == list:
-                    choices = mod_config[page][o]["choices"]
-                    input_type = "list"
-                    extras["mutli"] = True
+                        if type(default_val) == int:
+                            input_type = "integer"
 
-                row_widget = RowWidget(o, mod_config[page][o]["description"], val, default_val, input_type, choices, range, extras)
+                        elif type(default_val) == float:
+                            input_type = "float"
+                        
+                        if "range" in mod_config[page][o]:
+                            range = mod_config[page][o]["range"]
+
+                        else:
+                            raise KeyError(f'No "range" field for {page}: {o}')
+                        
+                    elif type(default_val) == bool:
+                        input_type = "boolean"
+
+                    elif type(default_val) == str:
+                        choices = mod_config[page][o]["choices"]
+                        input_type = "string"
+
+                    elif type(default_val) == list:
+                        choices = mod_config[page][o]["choices"]
+                        input_type = "list"
+                        extras["mutli"] = True
+
+                    row_widget = RowWidget(o, display_name, mod_config[page][o]["description"], val, default_val, input_type, choices, range, extras)
+                else:
+                    tab_name = mod_config[page][o]
                 scroll_layout.addWidget(row_widget, index, 0)
                 self.allWidgets.append((mod_config_path, page, row_widget))
                 index += 1
@@ -356,7 +366,12 @@ class MyGUI(QMainWindow):
             scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
             scroll_area.horizontalScrollBar().setEnabled(False)
             scroll_area.setWidget(tab)
-            self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))].addTab(scroll_area, page)
+            if tab_name == "Debug" or tab_name == "Reading Check":
+                tabs_end.append((os.path.basename(os.path.dirname(mod_config_path)),(scroll_area, tab_name)))
+            else:
+                self.central_widget_dict[os.path.basename(os.path.dirname(mod_config_path))].addTab(scroll_area, tab_name)
+        for t in tabs_end:
+            self.central_widget_dict[t[0]].addTab(*t[1])
         return True
 
 
@@ -372,9 +387,13 @@ class MyGUI(QMainWindow):
             widget = w[2]
             self.database[file][page][widget.name]['value'] = widget.val
 
-        for f in self.database:
-            json_write(f, self.database[f])
         
+        write_results = []
+        for f in self.database:
+            write_results.append(json_write(f, self.database[f], self.max_backups))
+        
+
+        title = 
         QMessageBox.question(self, 'Success!', "Saving Complete!", QMessageBox.Ok, QMessageBox.Ok)
 
 
@@ -457,7 +476,6 @@ def main():
     gui.show()
     sys.exit(app.exec_())
 
-
 def find_jsons(game_data_path):
     if not game_data_path:
         file_dialog = QFileDialog()
@@ -470,31 +488,45 @@ def find_jsons(game_data_path):
                 game_data_path = file_paths[0]
                 if not os.path.exists(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator"):
                     os.mkdir(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator")
-                f = open(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config", "w")
-                f.write("Path: " + game_data_path)
-                f.close()
+                with open(os.getenv("LOCALAPPDATA") + "\\JSONModConfigurator\\path.config", "w") as f:
+                    f.write("Path: " + game_data_path)
     json_list = glob(game_data_path + "Script Extender/*/*.json")
     
     return json_list, game_data_path
-
 
 def json_read(file):
     with open(file,"r") as file_handler:
         file_handler.seek(0)
         json_data = json.load(file_handler)
-        if "__CephelosModConfig" not in json_data:
+        if "__CephelosModConfigVersion" not in json_data:
             return None
-    file_handler.close
     print('file has been read and closed')
     return json_data
 
+def json_write(file, json_data, max_backups):
+    try:
+        if json_data != json_read(file):
+            working_dir = os.getcwd()
+            os.chdir(os.path.dirname(file))
+            shuffle_backups(f"{file}.1.bak", max_backups)
+            os.chdir(working_dir)
+            with open(file, "w") as file_handler:
+                json.dump(json_data, file_handler, indent=4)
+            return 1, ('Success!', "Saving Complete!")
+        else:
+            return 0, ('No Changes', "No changes to be saved.")
+    except Exception as e:
+        return 2, ("Save Failed!", repr(e))
 
-
-def json_write(file, json_data):
-    with open(file, "w") as file_handler:
-        json.dump(json_data, file_handler, indent=4)
-    file_handler.close
-    print('file has been written to and closed')
+def shuffle_backups(filename, max_backups, iter=1):
+    if max_backups <= 0:
+        os.remove(filename)
+        return
+    next_file = filename[::-1].replace(str(iter), str(iter+1))[::-1]
+    if os.path.exists(filename):
+        shuffle_backups(next_file, max_backups-1, iter=iter+1)
+    os.rename(filename, next_file)
+    return
 
 def find_deepest_parent(path):
     while path != os.path.dirname(path):
@@ -502,8 +534,6 @@ def find_deepest_parent(path):
             return path
         path = os.path.dirname(path)
     return path
-
-
 
 if __name__ == "__main__":
     main()
