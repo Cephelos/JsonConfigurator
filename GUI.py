@@ -2,6 +2,7 @@ from collections import OrderedDict
 from enum import Enum
 import sys
 import os
+import shutil
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMainWindow, QTabWidget, QWidget, QLabel, QGridLayout, QLineEdit, QPushButton, QCheckBox, QRadioButton, QMessageBox, QScrollArea, QVBoxLayout, QSlider, QSpinBox, QDoubleSpinBox, QFileDialog
 import json
@@ -388,13 +389,16 @@ class MyGUI(QMainWindow):
             self.database[file][page][widget.name]['value'] = widget.val
 
         
-        write_results = []
+        errors = []
+        highest_code = 0
         for f in self.database:
-            write_results.append(json_write(f, self.database[f], self.max_backups))
-        
+            code, err = json_write(f, self.database[f], self.max_backups)
+            highest_code = max(highest_code, code)
+            if err:
+                errors.append(err)
+        responses = [('No Changes', "No changes to be saved."),('Success!', "Saving Complete!"),('Error!','One or more errors occurred: ')]
 
-        title = 
-        QMessageBox.question(self, 'Success!', "Saving Complete!", QMessageBox.Ok, QMessageBox.Ok)
+        QMessageBox.question(self, responses[highest_code][0], responses[highest_code][1] + "\n".join([repr(x) for x in errors]), QMessageBox.Ok, QMessageBox.Ok)
 
 
     def click_reset(self):
@@ -507,25 +511,28 @@ def json_write(file, json_data, max_backups):
     try:
         if json_data != json_read(file):
             working_dir = os.getcwd()
-            os.chdir(os.path.dirname(file))
-            shuffle_backups(f"{file}.1.bak", max_backups)
-            os.chdir(working_dir)
+
+            if not os.path.exists(f"{file}.1.bak"):
+                shutil.copy(file, f"{file}.1.bak")
+            else:
+                shuffle_backups(f"{file}.1.bak", max_backups)
+                shutil.copy(file, f"{file}.1.bak")
+
             with open(file, "w") as file_handler:
                 json.dump(json_data, file_handler, indent=4)
-            return 1, ('Success!', "Saving Complete!")
+            return 1, None
         else:
-            return 0, ('No Changes', "No changes to be saved.")
+            return 0, None
     except Exception as e:
-        return 2, ("Save Failed!", repr(e))
+        print(file)
+        return 2, repr(e)
 
-def shuffle_backups(filename, max_backups, iter=1):
-    if max_backups <= 0:
-        os.remove(filename)
+def shuffle_backups(filename, max_backups, iter=2):
+    if not os.path.exists(filename) or max_backups <= 1:
         return
-    next_file = filename[::-1].replace(str(iter), str(iter+1))[::-1]
-    if os.path.exists(filename):
-        shuffle_backups(next_file, max_backups-1, iter=iter+1)
-    os.rename(filename, next_file)
+    next_file = filename[:-5] + str(iter) + filename[-4:]
+    shuffle_backups(next_file, max_backups-1, iter=iter+1)
+    shutil.copy(filename, next_file)
     return
 
 def find_deepest_parent(path):
